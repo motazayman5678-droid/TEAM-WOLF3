@@ -2,24 +2,29 @@ import discord
 from discord.ext import commands
 import os
 
-TOKEN = os.getenv("TOKEN")  # حط التوكن في Variables
+TOKEN = os.getenv("TOKEN")
 
 intents = discord.Intents.default()
-intents.members = True  # مهم
+intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f"Bot is ready: {bot.user}")
+    print(f"Logged in as {bot.user}")
 
 @bot.event
 async def on_member_join(member):
     try:
-        # تنظيف الاسم عشان ما يتجاوز 32 حرف
-        base_name = member.name
+        base_name = member.display_name
+
+        # منع تكرار 👑
+        if "👑" in base_name:
+            return
+
         new_name = f"👑 | {base_name} | 👑"
 
+        # التأكد من الطول
         if len(new_name) > 32:
             base_name = base_name[:20]
             new_name = f"👑 | {base_name} | 👑"
@@ -27,8 +32,8 @@ async def on_member_join(member):
         await member.edit(nick=new_name)
 
     except discord.Forbidden:
-        print(f"No permission to change nickname for {member.name}")
+        print("No permission")
     except Exception as e:
-        print(f"Error: {e}")
+        print(e)
 
 bot.run(TOKEN)
