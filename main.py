@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands, tasks
 import os
 import aiohttp
+from datetime import date
 
 TOKEN = os.getenv("TOKEN")
 
@@ -17,11 +18,14 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# نخزن ID العروض بدل الاسم (أدق)
 sent_games = set()
 
+# 📊 عداد يومي
+daily_count = 0
+current_day = date.today()
+
 # ========================
-# 👑 نظام الأسماء (كما هو)
+# 👑 نظام الأسماء
 # ========================
 @bot.event
 async def on_member_join(member):
@@ -44,11 +48,23 @@ async def on_member_join(member):
         pass
 
 # ========================
-# 🎮 نظام العروض (يرسل فقط الجديد)
+# 🎮 نظام العروض (محدود يومياً)
 # ========================
 @tasks.loop(minutes=5)
 async def fetch_games():
+    global daily_count, current_day
+
     await bot.wait_until_ready()
+
+    # 🔄 إعادة التصفير كل يوم
+    if date.today() != current_day:
+        daily_count = 0
+        current_day = date.today()
+        print("🔄 تم تصفير العداد اليومي")
+
+    # ❌ إذا وصل الحد
+    if daily_count >= 4:
+        return
 
     channel = bot.get_channel(GAMES_CHANNEL_ID)
 
@@ -62,7 +78,10 @@ async def fetch_games():
                 data = await resp.json()
 
                 for game in data:
-                    game_id = game.get("id")  # أهم شي
+                    if daily_count >= 4:
+                        break
+
+                    game_id = game.get("id")
                     title = game.get("title")
                     url = game.get("open_giveaway_url")
                     image = game.get("image")
@@ -75,12 +94,12 @@ async def fetch_games():
                     if not ("Epic" in platforms or "Steam" in platforms):
                         continue
 
-                    # ✅ إذا قديم → لا ترسل
                     if game_id in sent_games:
                         continue
 
-                    # ✅ جديد → أرسل
+                    # إرسال
                     sent_games.add(game_id)
+                    daily_count += 1
 
                     embed = discord.Embed(
                         title=f"🎮 {title}",
